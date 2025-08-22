@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Heart, Star } from "lucide-react";
+import { ExternalLink, Heart, Star, Filter, SortAsc } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/components/ui/use-toast";
@@ -12,6 +12,15 @@ import type { Application } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { getFirstScreenshotUrl } from "@/lib/image-utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PROJECT_CATEGORIES } from "@/types";
 
 type ApplicationWithProfile = Application & {
   stars: number;
@@ -33,20 +42,60 @@ export default function ApplicationsPage() {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("q") || "";
 
+  // Sorting and filtering state
+  const [sortBy, setSortBy] = useState<string>("newest");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
   useEffect(() => {
     fetchApplications();
   }, [user, profile]);
 
-  const filteredApplications = applications.filter((app) => {
-    if (!searchQuery) return true;
+  const filteredAndSortedApplications = (() => {
+    // First, filter applications
+    let filtered = applications.filter((app) => {
+      // Search query filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+          app.title.toLowerCase().includes(query) ||
+          app.description.toLowerCase().includes(query) ||
+          app.tags.some((tag) => tag.toLowerCase().includes(query));
+        if (!matchesSearch) return false;
+      }
 
-    const query = searchQuery.toLowerCase();
-    return (
-      app.title.toLowerCase().includes(query) ||
-      app.description.toLowerCase().includes(query) ||
-      app.tags.some((tag) => tag.toLowerCase().includes(query))
-    );
-  });
+      // Category filter
+      if (selectedCategory !== "all") {
+        const hasCategory = app.project_categories?.some(
+          (category) => category === selectedCategory
+        );
+        if (!hasCategory) return false;
+      }
+
+      return true;
+    });
+
+    // Then, sort applications
+    switch (sortBy) {
+      case "highest-rated":
+        return filtered.sort((a, b) => b.stars - a.stars);
+      case "lowest-rated":
+        return filtered.sort((a, b) => a.stars - b.stars);
+      case "newest":
+        return filtered.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      case "oldest":
+        return filtered.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      case "alphabetical":
+        return filtered.sort((a, b) => a.title.localeCompare(b.title));
+      default:
+        return filtered;
+    }
+  })();
 
   const fetchApplications = async () => {
     try {
@@ -188,6 +237,70 @@ export default function ApplicationsPage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
+        {/* Filters and Sorting Controls */}
+        {!loading && (
+          <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select
+                  value={selectedCategory}
+                  onValueChange={setSelectedCategory}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter by category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {PROJECT_CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <SortAsc className="h-4 w-4 text-muted-foreground" />
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="highest-rated">Highest Rated</SelectItem>
+                    <SelectItem value="lowest-rated">Lowest Rated</SelectItem>
+                    <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {filteredAndSortedApplications.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  Showing {filteredAndSortedApplications.length} of{" "}
+                  {applications.length} applications
+                </span>
+              )}
+              {(selectedCategory !== "all" || sortBy !== "newest") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedCategory("all");
+                    setSortBy("newest");
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -198,22 +311,30 @@ export default function ApplicationsPage() {
               </Card>
             ))}
           </div>
-        ) : filteredApplications.length === 0 ? (
+        ) : filteredAndSortedApplications.length === 0 ? (
           <div className="text-center text-muted-foreground py-12">
-            {searchQuery
-              ? "No applications found matching your search."
+            {searchQuery || selectedCategory !== "all"
+              ? "No applications found matching your filters. Try adjusting your search or category filter."
               : "No applications found. Be the first to submit one!"}
           </div>
         ) : (
           <>
             {/* Admin Applications Section */}
-            {filteredApplications.some(
+            {filteredAndSortedApplications.some(
               (app) => app.creator?.role === "admin"
             ) && (
               <div className="mb-8">
-                <h2 className="text-2xl font-semibold mb-4">Featured Apps</h2>
+                <h2 className="text-2xl font-semibold mb-4">
+                  Featured Apps (
+                  {
+                    filteredAndSortedApplications.filter(
+                      (app) => app.creator?.role === "admin"
+                    ).length
+                  }
+                  )
+                </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                  {filteredApplications
+                  {filteredAndSortedApplications
                     .filter((app) => app.creator?.role === "admin")
                     .map((app) => (
                       <Link
@@ -225,7 +346,7 @@ export default function ApplicationsPage() {
                           <div className="flex flex-col h-full">
                             <div className="relative w-full aspect-square max-h-[200px]">
                               <Image
-                                src={app.screenshot_url}
+                                src={getFirstScreenshotUrl(app.screenshot_url)}
                                 alt={app.title}
                                 fill
                                 className="object-cover"
@@ -308,13 +429,21 @@ export default function ApplicationsPage() {
             )}
 
             {/* Regular Applications Section */}
-            {filteredApplications.some(
+            {filteredAndSortedApplications.some(
               (app) => app.creator?.role !== "admin"
             ) && (
               <div>
-                <h2 className="text-2xl font-semibold mb-4">Community Apps</h2>
+                <h2 className="text-2xl font-semibold mb-4">
+                  Capstone Apps (
+                  {
+                    filteredAndSortedApplications.filter(
+                      (app) => app.creator?.role !== "admin"
+                    ).length
+                  }
+                  )
+                </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                  {filteredApplications
+                  {filteredAndSortedApplications
                     .filter((app) => app.creator?.role !== "admin")
                     .map((app) => (
                       <Link
@@ -326,7 +455,7 @@ export default function ApplicationsPage() {
                           <div className="flex flex-col h-full">
                             <div className="relative w-full aspect-square max-h-[200px]">
                               <Image
-                                src={app.screenshot_url}
+                                src={getFirstScreenshotUrl(app.screenshot_url)}
                                 alt={app.title}
                                 fill
                                 className="object-cover"

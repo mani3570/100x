@@ -20,10 +20,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-  session,
 }: {
   children: React.ReactNode;
-  session: any;
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -31,21 +29,15 @@ export default function RootLayout({
         <link rel="icon" href="/logo.jpg" type="image/jpeg" />
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col`}>
-        <Providers session={session}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <AuthProvider>
-              <NotificationsProvider>
-                <SiteHeader />
-                <main className="flex-1">
-                  <SpeedInsights />
-                  {children}
-                  <Analytics />
-                </main>
-                <SiteFooter />
-                <Toaster />
-              </NotificationsProvider>
-            </AuthProvider>
-          </ThemeProvider>
+        <Providers>
+          <SiteHeader />
+          <main className="flex-1">
+            <SpeedInsights />
+            {children}
+            <Analytics />
+          </main>
+          <SiteFooter />
+          <Toaster />
         </Providers>
       </body>
     </html>

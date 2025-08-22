@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import Link from "next/link";
 import { useNotifications } from "@/contexts/notifications-context";
+import { getFirstScreenshotUrl } from "@/lib/image-utils";
 
 // Add this to your types/index.ts file if not already present
 // export type AdminRole = 'admin' | 'user';
@@ -228,7 +229,7 @@ export default function AdminPage() {
                 <div className="flex gap-4">
                   <div className="w-24 h-24 relative rounded-md overflow-hidden flex-shrink-0">
                     <Image
-                      src={app.screenshot_url}
+                      src={getFirstScreenshotUrl(app.screenshot_url)}
                       alt={app.title}
                       fill
                       className="object-cover"

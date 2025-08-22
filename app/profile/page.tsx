@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import type { Application } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
+import { getFirstScreenshotUrl } from "@/lib/image-utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -75,6 +76,10 @@ export default function ProfilePage() {
   const [editedUserId, setEditedUserId] = useState("");
   const [editedPublicEmail, setEditedPublicEmail] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   useEffect(() => {
     if (user && profile) {
@@ -245,6 +250,64 @@ export default function ProfilePage() {
   // Add this function to handle the toggle change
   const handlePublicEmailToggle = (checked: boolean) => {
     setEditedPublicEmail(checked);
+  };
+
+  // Function to handle password change
+  const handlePasswordChange = async () => {
+    if (!newPassword || !confirmNewPassword || !currentPassword) {
+      toast({
+        title: "Error",
+        description: "Please fill in all password fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "New password must be at least 6 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Update password in Supabase auth
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Clear the password fields
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setIsChangingPassword(false);
+
+      toast({
+        title: "Success",
+        description: "Password updated successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update password",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleStar = async (id: string, isStarred: boolean) => {
@@ -485,6 +548,65 @@ export default function ProfilePage() {
           </Card>
         )}
 
+        {/* Password Change Section */}
+        <Card className="p-6 mb-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Change Password</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsChangingPassword(!isChangingPassword)}
+              >
+                {isChangingPassword ? "Cancel" : "Change Password"}
+              </Button>
+            </div>
+
+            {isChangingPassword && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter your current password"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter your new password"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmNewPassword">
+                    Confirm New Password
+                  </Label>
+                  <Input
+                    id="confirmNewPassword"
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    placeholder="Confirm your new password"
+                  />
+                </div>
+
+                <Button onClick={handlePasswordChange} className="w-full">
+                  Update Password
+                </Button>
+              </div>
+            )}
+          </div>
+        </Card>
+
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
           <Button
@@ -512,8 +634,8 @@ export default function ProfilePage() {
           {(activeTab === "my"
             ? myApplications
             : activeTab === "liked"
-            ? likedApplications
-            : commentedApplications
+              ? likedApplications
+              : commentedApplications
           ).map((app) => (
             <Link
               href={`/applications/${app.id}`}
@@ -525,7 +647,7 @@ export default function ProfilePage() {
                   <div className="flex flex-col h-full">
                     <div className="relative w-full aspect-square max-h-[200px]">
                       <Image
-                        src={app.screenshot_url}
+                        src={getFirstScreenshotUrl(app.screenshot_url)}
                         alt={app.title}
                         fill
                         className="object-cover"
@@ -607,7 +729,7 @@ export default function ProfilePage() {
                   <div className="flex flex-col h-full">
                     <div className="relative w-full aspect-square max-h-[200px]">
                       <Image
-                        src={app.screenshot_url}
+                        src={getFirstScreenshotUrl(app.screenshot_url)}
                         alt={app.title}
                         fill
                         className="object-cover"

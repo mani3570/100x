@@ -8,18 +8,24 @@ import { useAuth } from "@/contexts/auth-context";
 
 interface FileUploadProps {
   onUploadComplete: (url: string) => void;
+  onRemove?: (url: string) => void;
   currentUrl?: string;
   folder?: string;
+  multiple?: boolean;
+  maxFiles?: number;
 }
 
 export function FileUpload({
   onUploadComplete,
+  onRemove,
   currentUrl,
   folder = "applications",
+  multiple = false,
+  maxFiles = 1,
 }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(
-    currentUrl || null
+  const [previewUrls, setPreviewUrls] = useState<string[]>(
+    currentUrl ? [currentUrl] : []
   );
   const { toast } = useToast();
   const { user } = useAuth();
@@ -35,81 +41,115 @@ export function FileUpload({
       return;
     }
 
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
+    // Check if multiple files are allowed
+    if (!multiple && files.length > 1) {
       toast({
         title: "Error",
-        description: "Please upload an image file",
+        description: "Only single file upload is allowed",
         variant: "destructive",
       });
       return;
     }
 
-    // Validate file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
+    // Check max files limit including existing previews
+    if (previewUrls.length + files.length > maxFiles) {
       toast({
         title: "Error",
-        description: "File size must be less than 5MB",
+        description: `Maximum ${maxFiles} file${maxFiles > 1 ? "s" : ""} allowed. You currently have ${previewUrls.length}.`,
         variant: "destructive",
       });
       return;
     }
 
-    try {
-      setUploading(true);
-
-      // Create a unique file name with user ID to ensure uniqueness
-      const fileExt = file.name.split(".").pop();
-      // Validate extension is safe
-      const safeExtensions = ["jpg", "jpeg", "png", "gif", "webp"];
-      if (!fileExt || !safeExtensions.includes(fileExt.toLowerCase())) {
+    // Validate all files
+    for (const file of files) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
         toast({
           title: "Error",
-          description:
-            "Invalid file extension. Please upload a valid image file.",
+          description: `${file.name} is not an image file`,
           variant: "destructive",
         });
         return;
       }
-      const fileName = `${user.id}/${Math.random()
-        .toString(36)
-        .substring(2)}.${fileExt}`;
-      const filePath = `${folder}/${fileName}`;
 
-      console.log("Attempting to upload file:", {
-        path: filePath,
-        type: file.type,
-        size: file.size,
-        userId: user.id,
-      });
+      // Validate file size (3MB limit)
+      if (file.size > 3 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: `${file.name} is too large. File size must be less than 3MB`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
-      // Upload to Supabase Storage
-      const { error: uploadError, data } = await supabase.storage
-        .from("uploads")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
+    try {
+      setUploading(true);
+      const uploadedUrls: string[] = [];
+
+      // Upload all files
+      for (const file of files) {
+        // Create a unique file name with user ID to ensure uniqueness
+        const fileExt = file.name.split(".").pop();
+        // Validate extension is safe
+        const safeExtensions = ["jpg", "jpeg", "png", "gif", "webp"];
+        if (!fileExt || !safeExtensions.includes(fileExt.toLowerCase())) {
+          toast({
+            title: "Error",
+            description: `${file.name} has an invalid extension. Please upload a valid image file.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        const fileName = `${user.id}/${Math.random()
+          .toString(36)
+          .substring(2)}.${fileExt}`;
+        const filePath = `${folder}/${fileName}`;
+
+        console.log("Attempting to upload file:", {
+          path: filePath,
+          type: file.type,
+          size: file.size,
+          userId: user.id,
         });
 
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw uploadError;
+        // Upload to Supabase Storage
+        const { error: uploadError, data } = await supabase.storage
+          .from("uploads")
+          .upload(filePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          throw uploadError;
+        }
+
+        console.log("Upload successful:", data);
+
+        // Get public URL
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("uploads").getPublicUrl(filePath);
+
+        console.log("Public URL:", publicUrl);
+        uploadedUrls.push(publicUrl);
       }
 
-      console.log("Upload successful:", data);
+      // Update preview URLs
+      if (multiple) {
+        setPreviewUrls((prev) => [...prev, ...uploadedUrls]);
+      } else {
+        setPreviewUrls(uploadedUrls);
+      }
 
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("uploads").getPublicUrl(filePath);
-
-      console.log("Public URL:", publicUrl);
-
-      setPreviewUrl(publicUrl);
-      onUploadComplete(publicUrl);
+      // Call onUploadComplete for each uploaded file
+      uploadedUrls.forEach((url) => onUploadComplete(url));
     } catch (error: any) {
       console.error("Detailed error:", error);
       toast({
@@ -122,9 +162,13 @@ export function FileUpload({
     }
   };
 
-  const handleRemove = () => {
-    setPreviewUrl(null);
-    onUploadComplete("");
+  const handleRemove = (index: number) => {
+    const urlToRemove = previewUrls[index];
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+    // Notify parent about removal
+    if (onRemove && urlToRemove) {
+      onRemove(urlToRemove);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -140,45 +184,55 @@ export function FileUpload({
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragActive(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
       // Simulate file input change event
-      handleFileChange({ target: { files: [file] } } as any);
+      handleFileChange({ target: { files } } as any);
     }
   };
 
   return (
     <div className="space-y-2">
-      <Label>Application Logo</Label>
+      <Label>
+        {multiple
+          ? `Screenshots (${previewUrls.length}/${maxFiles})`
+          : "Screenshot"}
+      </Label>
       <div className="flex flex-col gap-4">
-        {previewUrl ? (
-          <div
-            className="relative flex justify-center items-center bg-muted rounded-lg"
-            style={{ minHeight: 120, minWidth: 120 }}
-          >
-            <img
-              src={previewUrl}
-              alt="Preview"
-              style={{
-                maxWidth: "100%",
-                maxHeight: 200,
-                height: "auto",
-                width: "auto",
-                display: "block",
-              }}
-              className="rounded-lg"
-            />
-            <Button
-              type="button"
-              variant="destructive"
-              size="icon"
-              className="absolute top-2 right-2"
-              onClick={handleRemove}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+        {previewUrls.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {previewUrls.map((url, index) => (
+              <div
+                key={index}
+                className="relative flex justify-center items-center bg-muted rounded-lg"
+                style={{ minHeight: 120, minWidth: 120 }}
+              >
+                <img
+                  src={url}
+                  alt={`Preview ${index + 1}`}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: 200,
+                    height: "auto",
+                    width: "auto",
+                    display: "block",
+                  }}
+                  className="rounded-lg"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2"
+                  onClick={() => handleRemove(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
           </div>
-        ) : (
+        )}
+        {previewUrls.length < maxFiles && (
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
               isDragActive
@@ -196,6 +250,7 @@ export function FileUpload({
               className="hidden"
               id="file-upload"
               disabled={uploading}
+              multiple={multiple}
             />
             <label
               htmlFor="file-upload"
@@ -206,8 +261,12 @@ export function FileUpload({
                 {uploading
                   ? "Uploading..."
                   : isDragActive
-                  ? "Drop the image here"
-                  : "Click or drag an image to upload"}
+                    ? multiple
+                      ? "Drop images here"
+                      : "Drop the image here"
+                    : multiple
+                      ? "Click or drag images to upload"
+                      : "Click or drag an image to upload"}
               </span>
             </label>
           </div>

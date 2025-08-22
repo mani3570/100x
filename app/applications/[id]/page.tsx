@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
@@ -15,6 +15,9 @@ import {
   Share2,
   MoreVertical,
   Star,
+  ChevronLeft,
+  ChevronRight,
+  Play,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import type { Application } from "@/types";
@@ -44,6 +47,7 @@ import {
 import { MarkdownPreview } from "@/components/ui/markdown-preview";
 import { MarkdownHelp } from "@/components/ui/markdown-help";
 import { Label } from "@/components/ui/label";
+import { getFirstScreenshotUrl } from "@/lib/image-utils";
 // import { CommentSection } from "@/components/comment-section";
 
 type Reply = {
@@ -130,6 +134,7 @@ export default function ApplicationPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCommentPreview, setShowCommentPreview] = useState(false);
   const [showReplyPreview, setShowReplyPreview] = useState<string | null>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     fetchApplication();
@@ -672,6 +677,87 @@ export default function ApplicationPage() {
     }
   };
 
+  // Prepare media items for slideshow using useMemo
+  const mediaItems = useMemo(() => {
+    if (!application) return [];
+
+    const items: Array<{ type: "image" | "video"; src: string; alt?: string }> =
+      [];
+
+    // Add screenshots
+    if (application.screenshot_url) {
+      let screenshots: string[] = [];
+
+      // Handle different screenshot_url formats
+      if (typeof application.screenshot_url === "string") {
+        try {
+          // Try to parse as JSON array first
+          if (application.screenshot_url.startsWith("[")) {
+            screenshots = JSON.parse(application.screenshot_url);
+          } else {
+            // Single URL
+            screenshots = [application.screenshot_url];
+          }
+        } catch {
+          // Fallback to single URL
+          screenshots = [application.screenshot_url];
+        }
+      } else if (Array.isArray(application.screenshot_url)) {
+        screenshots = application.screenshot_url;
+      }
+
+      screenshots.forEach((url) => {
+        if (url && url.startsWith("http")) {
+          items.push({
+            type: "image",
+            src: url,
+            alt: application.title,
+          });
+        }
+      });
+    }
+
+    // Add video if available
+    if (application.video_url) {
+      items.push({
+        type: "video",
+        src: application.video_url
+          .replace("/view?usp=sharing", "/preview")
+          .replace("/view", "/preview"),
+      });
+    }
+
+    return items;
+  }, [application?.screenshot_url, application?.video_url, application?.title]);
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % mediaItems.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide(
+      (prev) => (prev - 1 + mediaItems.length) % mediaItems.length
+    );
+  };
+
+  // Keyboard navigation for slideshow
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (mediaItems.length <= 1) return;
+
+      if (event.key === "ArrowLeft") {
+        setCurrentSlide(
+          (prev) => (prev - 1 + mediaItems.length) % mediaItems.length
+        );
+      } else if (event.key === "ArrowRight") {
+        setCurrentSlide((prev) => (prev + 1) % mediaItems.length);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mediaItems.length]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background p-6">
@@ -698,28 +784,135 @@ export default function ApplicationPage() {
                 application?.status === "pending"
                   ? "bg-yellow-500/10 text-yellow-500"
                   : application?.status === "rejected"
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-blue-500/10 text-blue-500"
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-blue-500/10 text-blue-500"
               }`}
             >
               {isAdmin ? "(Admin View) " : ""}
               {application?.status === "pending"
                 ? "This application is pending approval"
                 : application?.status === "rejected"
-                ? "This application has been rejected"
-                : "This application is awaiting re-review"}
+                  ? "This application has been rejected"
+                  : "This application is awaiting re-review"}
             </div>
           )}
 
-          {/* Hero Image */}
-          <div className="relative h-[400px] w-full">
-            <Image
-              src={application.screenshot_url}
-              alt={application.title}
-              fill
-              className="object-cover"
-            />
+          {/* Media Slideshow */}
+          <div className="relative h-[400px] w-full group">
+            {mediaItems.length > 0 ? (
+              <>
+                {/* Current slide */}
+                <div className="relative w-full h-full">
+                  {mediaItems[currentSlide].type === "image" ? (
+                    <Image
+                      src={mediaItems[currentSlide].src}
+                      alt={mediaItems[currentSlide].alt || application.title}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="relative w-full h-full bg-black flex items-center justify-center">
+                      <iframe
+                        src={mediaItems[currentSlide].src}
+                        width="100%"
+                        height="100%"
+                        allow="autoplay; encrypted-media"
+                        allowFullScreen
+                        title="Application Demo Video"
+                        className="absolute top-0 left-0 w-full h-full"
+                      />
+                      <div className="absolute top-4 left-4 bg-black/50 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
+                        <Play className="h-3 w-3" />
+                        Demo Video
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Navigation arrows */}
+                {mediaItems.length > 1 && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={prevSlide}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={nextSlide}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+
+                {/* Slide indicators */}
+                {mediaItems.length > 1 && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                    {mediaItems.map((_, index) => (
+                      <button
+                        key={index}
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          index === currentSlide
+                            ? "bg-white"
+                            : "bg-white/50 hover:bg-white/70"
+                        }`}
+                        onClick={() => setCurrentSlide(index)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Media counter */}
+                {mediaItems.length > 1 && (
+                  <div className="absolute top-4 right-4 bg-black/50 text-white px-2 py-1 rounded text-sm">
+                    {currentSlide + 1} / {mediaItems.length}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
+                No media available
+              </div>
+            )}
           </div>
+
+          {/* Thumbnail strip */}
+          {mediaItems.length > 1 && (
+            <div className="p-4 border-t bg-muted/50">
+              <div className="flex gap-2 overflow-x-auto">
+                {mediaItems.map((item, index) => (
+                  <button
+                    key={index}
+                    className={`relative flex-shrink-0 w-16 h-12 rounded border-2 transition-colors overflow-hidden ${
+                      index === currentSlide
+                        ? "border-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                    onClick={() => setCurrentSlide(index)}
+                  >
+                    {item.type === "image" ? (
+                      <Image
+                        src={item.src}
+                        alt={item.alt || application.title}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-black flex items-center justify-center">
+                        <Play className="h-4 w-4 text-white" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Content */}
           <div className="p-6">
@@ -870,27 +1063,6 @@ export default function ApplicationPage() {
             </div>
           </div>
         </Card>
-
-        {application.video_url && (
-          <Card className="mt-6 p-6">
-            <h2 className="text-2xl font-semibold mb-4">Demo Video</h2>
-            <div className="aspect-video relative">
-              {" "}
-              {/* Added relative for better iframe sizing */}
-              <iframe
-                src={application.video_url
-                  .replace("/view?usp=sharing", "/preview")
-                  .replace("/view", "/preview")}
-                width="100%"
-                height="100%"
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-                title="Application Demo Video"
-                className="rounded-md absolute top-0 left-0 w-full h-full" /* Added absolute positioning */
-              ></iframe>
-            </div>
-          </Card>
-        )}
 
         {/* Comments Section */}
         {application.comments_enabled ? (

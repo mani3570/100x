@@ -9,25 +9,188 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { MarkdownPreview } from "@/components/ui/markdown-preview";
 import { MarkdownHelp } from "@/components/ui/markdown-help";
-import { Info } from "lucide-react";
+import { Info, Search, X, User } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { PROJECT_CATEGORIES, TEAM_TYPES } from "@/types";
 
 export default function SubmitPage() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [screenshotUrl, setScreenshotUrl] = useState("");
+  const [screenshotUrls, setScreenshotUrls] = useState<string[]>([]);
   const [description, setDescription] = useState("");
+
+  // New state variables
+  const [projectCategories, setProjectCategories] = useState<string[]>([]);
+  const [teamType, setTeamType] = useState("");
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Search for team members - Fixed version
+  const searchTeamMembers = async (query: string) => {
+    if (!query.trim() || !profile?.id) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, user_id, name, email")
+        .or(`user_id.ilike.%${query}%,name.ilike.%${query}%`)
+        .neq("id", profile.id) // Exclude the current user
+        .limit(10);
+
+      if (error) throw error;
+
+      // Filter out any results that might have null values
+      const filteredResults = (data || []).filter(
+        (member) => member.id && member.user_id && member.name
+      );
+
+      setSearchResults(filteredResults);
+    } catch (error) {
+      console.error("Error searching team members:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle search input change with debouncing - Fixed version
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (value.trim()) {
+      // Debounce the search to avoid too many API calls
+      searchTimeoutRef.current = setTimeout(() => {
+        searchTeamMembers(value);
+      }, 300);
+    } else {
+      setSearchResults([]);
+    }
+  };
+  // Add team member
+  const addTeamMember = (member: any) => {
+    if (selectedTeamMembers.length >= 4) {
+      toast({
+        title: "Error",
+        description: "Maximum 4 team members allowed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedTeamMembers.find((m) => m.id === member.id)) {
+      toast({
+        title: "Error",
+        description: "Team member already added",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Prevent adding the current user
+    if (member.id === profile?.id) {
+      toast({
+        title: "Error",
+        description: "You cannot add yourself as a team member",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedTeamMembers([...selectedTeamMembers, member]);
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearchOpen(false);
+  };
+
+  // Remove team member
+  const removeTeamMember = (memberId: string) => {
+    setSelectedTeamMembers(
+      selectedTeamMembers.filter((m) => m.id !== memberId)
+    );
+  };
+
+  // Handle search input change with debouncing
+  // const handleSearchChange = (value: string) => {
+  //   setSearchQuery(value);
+
+  //   // Clear previous timeout
+  //   if (searchTimeoutRef.current) {
+  //     clearTimeout(searchTimeoutRef.current);
+  //   }
+
+  //   if (value.trim()) {
+  //     // Debounce the search to avoid too many API calls
+  //     searchTimeoutRef.current = setTimeout(() => {
+  //       searchTeamMembers(value);
+  //     }, 300);
+  //   } else {
+  //     setSearchResults([]);
+  //   }
+  // };
+
+  // Clear team members when team type changes to solo
+  useEffect(() => {
+    if (teamType === "solo") {
+      setSelectedTeamMembers([]);
+      setSearchQuery("");
+      setSearchResults([]);
+      setIsSearchOpen(false);
+    }
+  }, [teamType]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -40,10 +203,47 @@ export default function SubmitPage() {
       return;
     }
 
-    if (!screenshotUrl) {
+    if (screenshotUrls.length === 0) {
       toast({
         title: "Error",
-        description: "Please upload a screenshot of your application",
+        description:
+          "Please upload at least one screenshot of your application",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (projectCategories.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one project category",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!teamType) {
+      toast({
+        title: "Error",
+        description: "Please select a team type",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (teamType === "team" && selectedTeamMembers.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one team member for team projects",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (screenshotUrls.length > 3) {
+      toast({
+        title: "Error",
+        description: "Maximum 3 screenshots allowed",
         variant: "destructive",
       });
       return;
@@ -71,9 +271,19 @@ export default function SubmitPage() {
           title: formData.get("title"),
           description: description,
           url: formData.get("url"),
-          screenshot_url: screenshotUrl,
+          screenshot_url: screenshotUrls,
           video_url: formData.get("video_url") || null,
           tags,
+          project_categories: projectCategories,
+          team_type: teamType,
+          team_members:
+            teamType === "team"
+              ? selectedTeamMembers.map((m) => ({
+                  id: m.id,
+                  user_id: m.user_id,
+                  name: m.name,
+                }))
+              : null,
           creator_id: profile.id,
           comments_enabled: true,
           status: "pending",
@@ -169,14 +379,22 @@ export default function SubmitPage() {
                 <MarkdownHelp />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="min-h-[200px]"
-                  required
-                />
+                <div className="space-y-2">
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="min-h-[200px]"
+                    placeholder="Describe your application in detail..."
+                    maxLength={1000}
+                    required
+                  />
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Markdown supported</span>
+                    <span>{description.length}/1000 characters</span>
+                  </div>
+                </div>
                 <div className="border rounded-md p-4">
                   <h3 className="text-sm font-medium mb-2">Preview</h3>
                   <MarkdownPreview content={description} />
@@ -223,7 +441,21 @@ export default function SubmitPage() {
               />
             </div>
 
-            <FileUpload onUploadComplete={setScreenshotUrl} />
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Upload up to 3 screenshots at once (Max 3MB each)
+              </p>
+              <FileUpload
+                onUploadComplete={(url) => {
+                  setScreenshotUrls((prev) => [...prev, url]);
+                }}
+                onRemove={(url) => {
+                  setScreenshotUrls((prev) => prev.filter((u) => u !== url));
+                }}
+                multiple={true}
+                maxFiles={3}
+              />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="tags">Tags (comma separated)</Label>
@@ -234,15 +466,198 @@ export default function SubmitPage() {
               />
             </div>
 
-            {/* never enable comments and remove this */}
-            {/* <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="comments_enabled">Enable Comments</Label>
-              <Switch
-                id="comments_enabled"
-                name="comments_enabled"
-                defaultChecked={true}
-              />
-            </div> */}
+            {/* Project Categories */}
+            <div className="space-y-2">
+              <Label>Project Categories *</Label>
+              <p className="text-sm text-muted-foreground">
+                Select one or more categories that apply to your project
+              </p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    {projectCategories.length === 0
+                      ? "Select categories..."
+                      : `${projectCategories.length} selected`}
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <div className="p-2">
+                    {PROJECT_CATEGORIES.map((category) => (
+                      <div
+                        key={category}
+                        className="flex items-center space-x-2 p-2 hover:bg-accent hover:text-accent-foreground rounded-md cursor-pointer"
+                        onClick={() => {
+                          if (projectCategories.includes(category)) {
+                            setProjectCategories(
+                              projectCategories.filter((c) => c !== category)
+                            );
+                          } else {
+                            setProjectCategories([
+                              ...projectCategories,
+                              category,
+                            ]);
+                          }
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={projectCategories.includes(category)}
+                          readOnly
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm">{category}</span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              {projectCategories.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {projectCategories.map((category) => (
+                    <Badge
+                      key={category}
+                      variant="secondary"
+                      className="px-2 py-1"
+                    >
+                      {category}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Team Type */}
+            <div className="space-y-2">
+              <Label htmlFor="team_type">Team Type *</Label>
+              <Select value={teamType} onValueChange={setTeamType} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEAM_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Team Members Selection - Only show when team type is "team" */}
+            {teamType === "team" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Team Members (Max 4)</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Search and select up to 4 team members by name or user ID
+                  </p>
+                </div>
+
+                {/* Team Member Search */}
+                <div className="space-y-2">
+                  <Popover
+                    open={isSearchOpen}
+                    onOpenChange={(open) => {
+                      setIsSearchOpen(open);
+                      // Clear search when closing
+                      if (!open) {
+                        setSearchQuery("");
+                        setSearchResults([]);
+                      }
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isSearchOpen}
+                        className="w-full justify-between"
+                      >
+                        <Search className="mr-2 h-4 w-4" />
+                        Search team members...
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder="Search by name or user ID..."
+                          value={searchQuery}
+                          onValueChange={handleSearchChange}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            {isSearching
+                              ? "Searching..."
+                              : searchQuery.trim()
+                                ? "No team members found."
+                                : "Start typing to search..."}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {searchResults.map((member) => (
+                              <CommandItem
+                                key={member.id}
+                                onSelect={() => addTeamMember(member)}
+                                className="cursor-pointer"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4" />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">
+                                      {member.name}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground">
+                                      @{member.user_id}
+                                    </span>
+                                  </div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Selected Team Members */}
+                {selectedTeamMembers.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>
+                      Selected Team Members ({selectedTeamMembers.length}/4)
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTeamMembers.map((member) => (
+                        <Badge
+                          key={member.id}
+                          variant="secondary"
+                          className="flex items-center gap-2 px-3 py-1"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">{member.name}</span>
+                            {/* <span className="text-xs text-muted-foreground">
+                              @{member.user_id}
+                            </span> */}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeTeamMember(member.id)}
+                            className="h-4 w-4 p-0 hover:bg-transparent"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-4">
               <Button type="submit" className="flex-1" disabled={isSubmitting}>

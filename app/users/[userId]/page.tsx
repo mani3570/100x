@@ -12,6 +12,7 @@ import type { Application } from "@/types";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
+import { getFirstScreenshotUrl } from "@/lib/image-utils";
 
 type UserProfile = {
   user_id: string;
@@ -46,7 +47,7 @@ export default function UserProfilePage() {
             title,
             description,
             url,
-            screenshot_url,
+            screenshot_urls,
             tags,
             status,
             created_at,
@@ -159,7 +160,9 @@ export default function UserProfilePage() {
                     <div className="flex flex-col h-full">
                       <div className="relative w-full aspect-square max-h-[200px]">
                         <Image
-                          src={app.screenshot_url}
+                          src={getFirstScreenshotUrl(
+                            app.screenshot_urls || app.screenshot_url
+                          )}
                           alt={app.title}
                           fill
                           className="object-cover"
