@@ -48,6 +48,8 @@ import { MarkdownPreview } from "@/components/ui/markdown-preview";
 import { MarkdownHelp } from "@/components/ui/markdown-help";
 import { Label } from "@/components/ui/label";
 import { getFirstScreenshotUrl } from "@/lib/image-utils";
+import { getVideoEmbedInfo, getVideoPlatformName } from "@/lib/video-utils";
+import { VideoPlayer } from "@/components/ui/video-player";
 // import { CommentSection } from "@/components/comment-section";
 
 type Reply = {
@@ -719,12 +721,14 @@ export default function ApplicationPage() {
 
     // Add video if available
     if (application.video_url) {
-      items.push({
-        type: "video",
-        src: application.video_url
-          .replace("/view?usp=sharing", "/preview")
-          .replace("/view", "/preview"),
-      });
+      const videoInfo = getVideoEmbedInfo(application.video_url);
+      if (videoInfo.embedUrl) {
+        items.push({
+          type: "video",
+          src: videoInfo.embedUrl,
+          alt: `${application.title} - ${getVideoPlatformName(videoInfo)} Video`,
+        });
+      }
     }
 
     return items;
@@ -811,21 +815,11 @@ export default function ApplicationPage() {
                       className="object-cover"
                     />
                   ) : (
-                    <div className="relative w-full h-full bg-black flex items-center justify-center">
-                      <iframe
-                        src={mediaItems[currentSlide].src}
-                        width="100%"
-                        height="100%"
-                        allow="autoplay; encrypted-media"
-                        allowFullScreen
-                        title="Application Demo Video"
-                        className="absolute top-0 left-0 w-full h-full"
-                      />
-                      <div className="absolute top-4 left-4 bg-black/50 text-white px-2 py-1 rounded text-sm flex items-center gap-1">
-                        <Play className="h-3 w-3" />
-                        Demo Video
-                      </div>
-                    </div>
+                    <VideoPlayer
+                      videoUrl={application.video_url || ""}
+                      title={application.title}
+                      className="w-full h-full"
+                    />
                   )}
                 </div>
 
@@ -1247,11 +1241,12 @@ export default function ApplicationPage() {
             </div>
           </Card>
         ) : (
-          <Card className="mt-6 p-6">
-            <p className="text-muted-foreground text-center py-4">
-              Comments are disabled for this application.
-            </p>
-          </Card>
+          <></>
+          // <Card className="mt-6 p-6">
+          //   <p className="text-muted-foreground text-center py-4">
+          //     Comments are disabled for this application.
+          //   </p>
+          // </Card>
         )}
 
         {/* Add these AlertDialog components before the closing div of the component */}

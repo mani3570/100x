@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,14 +19,22 @@ import {
   Youtube,
   Instagram,
   Sparkles,
+  ChevronLeft,
+  Play,
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import Image from "next/image";
+import { getFirstScreenshotUrl } from "@/lib/image-utils";
+import { getVideoEmbedInfo, getVideoPlatformName } from "@/lib/video-utils";
+import { VideoPlayer } from "@/components/ui/video-player";
 
 type FeaturedApp = {
   title: string;
   description: string;
   image: string;
+  screenshot_url: any;
+  video_url?: string | null;
   category: string;
   stars: number;
   id: string;
@@ -35,10 +43,92 @@ type FeaturedApp = {
 export default function Home() {
   const [featuredApps, setFeaturedApps] = useState<FeaturedApp[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentSlides, setCurrentSlides] = useState<{ [key: string]: number }>(
+    {}
+  );
 
   useEffect(() => {
     fetchFeaturedApps();
   }, []);
+
+  // Helper function to get media items for slideshow
+  const getMediaItems = (app: FeaturedApp) => {
+    const items: Array<{ type: "image" | "video"; src: string; alt?: string }> =
+      [];
+
+    // Add screenshots
+    if (app.screenshot_url) {
+      let screenshots: string[] = [];
+
+      // Handle different screenshot_url formats
+      if (typeof app.screenshot_url === "string") {
+        try {
+          // Try to parse as JSON array first
+          if (app.screenshot_url.startsWith("[")) {
+            screenshots = JSON.parse(app.screenshot_url);
+          } else {
+            // Single URL
+            screenshots = [app.screenshot_url];
+          }
+        } catch {
+          // Fallback to single URL
+          screenshots = [app.screenshot_url];
+        }
+      } else if (Array.isArray(app.screenshot_url)) {
+        screenshots = app.screenshot_url;
+      }
+
+      screenshots.forEach((url) => {
+        if (url && url.startsWith("http")) {
+          items.push({
+            type: "image",
+            src: url,
+            alt: app.title,
+          });
+        }
+      });
+    }
+
+    // Add video if available
+    if (app.video_url) {
+      const videoInfo = getVideoEmbedInfo(app.video_url);
+      if (videoInfo.embedUrl) {
+        items.push({
+          type: "video",
+          src: videoInfo.embedUrl,
+          alt: `${app.title} - ${getVideoPlatformName(videoInfo)} Video`,
+        });
+      }
+    }
+
+    return items;
+  };
+
+  const nextSlide = (appId: string) => {
+    const app = featuredApps.find((a) => a.id === appId);
+    if (!app) return;
+
+    const mediaItems = getMediaItems(app);
+    if (mediaItems.length <= 1) return;
+
+    setCurrentSlides((prev) => ({
+      ...prev,
+      [appId]: (prev[appId] || 0 + 1) % mediaItems.length,
+    }));
+  };
+
+  const prevSlide = (appId: string) => {
+    const app = featuredApps.find((a) => a.id === appId);
+    if (!app) return;
+
+    const mediaItems = getMediaItems(app);
+    if (mediaItems.length <= 1) return;
+
+    setCurrentSlides((prev) => ({
+      ...prev,
+      [appId]: (prev[appId] || 0 - 1 + mediaItems.length) % mediaItems.length,
+    }));
+  };
 
   const fetchFeaturedApps = async () => {
     try {
@@ -89,6 +179,8 @@ export default function Home() {
         title: app.title,
         description: app.description,
         image: app.screenshot_url,
+        screenshot_url: app.screenshot_url,
+        video_url: app.video_url,
         category: app.tags[0] || "General",
         stars: app.stars[0]?.count || 0,
         id: app.id,
@@ -174,12 +266,101 @@ export default function Home() {
                     key={index}
                     className="overflow-hidden hover:shadow-xl hover:shadow-[#75fa8d]/5 transition-all duration-300 border-[#75fa8d]/10 hover:border-[#75fa8d]/20 bg-card/50 backdrop-blur"
                   >
-                    <div className="aspect-video w-full overflow-hidden">
-                      <img
-                        src={app.image}
-                        alt={app.title}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                      />
+                    <div className="aspect-video w-full overflow-hidden relative group">
+                      {(() => {
+                        const mediaItems = getMediaItems(app);
+                        const currentSlide = currentSlides[app.id] || 0;
+
+                        if (mediaItems.length === 0) {
+                          return (
+                            <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
+                              No media available
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <>
+                            {/* Current slide */}
+                            <div className="relative w-full h-full">
+                              {mediaItems[currentSlide].type === "image" ? (
+                                <Image
+                                  src={mediaItems[currentSlide].src}
+                                  alt={
+                                    mediaItems[currentSlide].alt || app.title
+                                  }
+                                  fill
+                                  className="object-cover hover:scale-105 transition-transform duration-500"
+                                />
+                              ) : (
+                                <VideoPlayer
+                                  videoUrl={app.video_url || ""}
+                                  title={app.title}
+                                  className="w-full h-full"
+                                />
+                              )}
+                            </div>
+
+                            {/* Navigation arrows */}
+                            {mediaItems.length > 1 && (
+                              <>
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    prevSlide(app.id);
+                                  }}
+                                >
+                                  <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    nextSlide(app.id);
+                                  }}
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+
+                            {/* Slide indicators */}
+                            {mediaItems.length > 1 && (
+                              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                                {mediaItems.map((_, index) => (
+                                  <button
+                                    key={index}
+                                    className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                                      index === currentSlide
+                                        ? "bg-white"
+                                        : "bg-white/50 hover:bg-white/70"
+                                    }`}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setCurrentSlides((prev) => ({
+                                        ...prev,
+                                        [app.id]: index,
+                                      }));
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Media counter */}
+                            {mediaItems.length > 1 && (
+                              <div className="absolute top-2 right-2 bg-black/50 text-white px-1.5 py-0.5 rounded text-xs">
+                                {currentSlide + 1} / {mediaItems.length}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="p-6">
                       <div className="flex items-center justify-between mb-2">

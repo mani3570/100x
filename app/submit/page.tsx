@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { PROJECT_CATEGORIES, TEAM_TYPES } from "@/types";
+import { getVideoEmbedInfo, getVideoPlatformName } from "@/lib/video-utils";
 
 export default function SubmitPage() {
   const { user, profile } = useAuth();
@@ -264,6 +265,21 @@ export default function SubmitPage() {
           .map((tag) => tag.trim())
           .filter(Boolean) || [];
 
+      // Validate video URL if provided
+      const videoUrl = formData.get("video_url")?.toString();
+      if (videoUrl && videoUrl.trim()) {
+        const videoInfo = getVideoEmbedInfo(videoUrl);
+        if (!videoInfo.embedUrl) {
+          toast({
+            title: "Invalid Video URL",
+            description:
+              "Please provide a valid video URL from YouTube, Google Drive, Loom, or Vimeo",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       // Create the application
       const { data: app, error } = await supabase
         .from("applications")
@@ -415,20 +431,31 @@ export default function SubmitPage() {
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Label htmlFor="video_url">Demo Video (Optional)</Label>
+                <Label htmlFor="video_url">Demo Video</Label>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      Share a Google Drive link to a video demonstrating your
-                      application's functionality.
-                      <br />
-                      <b>
-                        Don't forget to give public access to the video you are
-                        sharing.
-                      </b>
+                      <div className="space-y-2">
+                        <p>
+                          Share a video demonstrating your application's
+                          functionality.
+                        </p>
+                        <p>
+                          <b>Supported platforms:</b>
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 text-sm">
+                          <li>YouTube (public videos)</li>
+                          <li>Google Drive (public access required)</li>
+                          <li>Loom (public recordings)</li>
+                          <li>Vimeo (public videos)</li>
+                        </ul>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Make sure your video has public access permissions.
+                        </p>
+                      </div>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -437,8 +464,13 @@ export default function SubmitPage() {
                 id="video_url"
                 name="video_url"
                 type="url"
-                placeholder="https://drive.google.com/file/d/your-video-id/view"
+                placeholder="https://drive.google.com/file/d/.../view"
+                required
               />
+              <p className="text-xs text-muted-foreground">
+                We'll automatically detect the platform and convert it to the
+                proper embed format.
+              </p>
             </div>
 
             <div className="space-y-2">

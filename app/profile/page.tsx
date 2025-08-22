@@ -621,12 +621,12 @@ export default function ProfilePage() {
           >
             Starred ({likedApplications.length})
           </Button>
-          <Button
+          {/* <Button
             variant={activeTab === "commented" ? "default" : "outline"}
             onClick={() => setActiveTab("commented")}
           >
             Commented ({commentedApplications.length})
-          </Button>
+          </Button> */}
         </div>
 
         {/* Applications Grid */}
