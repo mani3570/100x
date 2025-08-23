@@ -115,7 +115,7 @@ export default function EditApplicationPage() {
           url: formData.get("url"),
           screenshot_url: screenshotUrl,
           tags,
-          comments_enabled: true,
+          comments_enabled: false,
         })
         .eq("id", id)
         .eq("creator_id", profile.id);

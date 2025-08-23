@@ -19,6 +19,7 @@ type UserProfile = {
   email: string;
   public_email: boolean;
   applications: (Application & { stars: number })[];
+  name: string;
 };
 
 export default function UserProfilePage() {
@@ -42,12 +43,13 @@ export default function UserProfilePage() {
           user_id,
           email,
           public_email,
+          name,
           applications!applications_creator_id_fkey (
             id,
             title,
             description,
             url,
-            screenshot_urls,
+            screenshot_url,
             tags,
             status,
             created_at,
@@ -74,6 +76,7 @@ export default function UserProfilePage() {
         email: profileData.email,
         public_email: profileData.public_email,
         applications: formattedApps,
+        name: profileData.name,
       });
     } catch (error: any) {
       console.error("Error fetching profile:", error);
@@ -123,7 +126,7 @@ export default function UserProfilePage() {
           <div className="p-6">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-2xl font-bold">@{profile.user_id}</h1>
+                <h1 className="text-2xl font-bold">{profile.name}</h1>
                 {profile.public_email && (
                   <p className="text-muted-foreground mt-2">
                     <span className="font-medium">Email:</span> {profile.email}

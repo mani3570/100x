@@ -166,7 +166,7 @@ export default function ApplicationPage() {
           `
           *,
           stars(count),
-          creator:profiles!creator_id(user_id, role)
+          creator:profiles!creator_id(user_id, role, name)
         `
         )
         .eq("id", id)
@@ -921,7 +921,7 @@ export default function ApplicationPage() {
                     href={`/users/${application.creator.user_id}`}
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary px-3 py-2 bg-muted rounded-md hover:bg-muted"
                   >
-                    @{application.creator.user_id}
+                    {application.creator.name}
                   </Link>
                 )}
 
