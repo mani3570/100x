@@ -301,7 +301,7 @@ export default function SubmitPage() {
                 }))
               : null,
           creator_id: profile.id,
-          comments_enabled: true,
+          comments_enabled: false,
           status: "pending",
         })
         .select()
