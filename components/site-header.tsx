@@ -126,13 +126,13 @@ export function SiteHeader() {
               >
                 Login
               </Button>
-              <Button
+              {/* <Button
                 size="sm"
                 className="bg-orange-500 hover:bg-orange-500/90 text-white"
                 onClick={() => router.push("/register")}
               >
                 Register
-              </Button>
+              </Button> */}
             </div>
           )}
         </div>

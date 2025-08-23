@@ -118,13 +118,13 @@ export default function LoginPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <button
+              {/* <button
                 type="button"
                 onClick={() => setIsResettingPassword(!isResettingPassword)}
                 className="text-sm text-primary hover:underline"
               >
                 Forgot Password?
-              </button>
+              </button> */}
             </div>
             <Input
               id="password"
@@ -142,7 +142,7 @@ export default function LoginPage() {
         </form>
 
         {/* Password Reset Form */}
-        {isResettingPassword && (
+        {/* {isResettingPassword && (
           <div className="mt-6 pt-6 border-t">
             <h3 className="text-lg font-semibold mb-4">Reset Password</h3>
             <form onSubmit={handlePasswordReset} className="space-y-4">
@@ -179,9 +179,9 @@ export default function LoginPage() {
               </div>
             </form>
           </div>
-        )}
+        )} */}
 
-        <p className="text-center mt-4 text-sm text-muted-foreground">
+        {/* <p className="text-center mt-4 text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
           <span
             className="text-primary cursor-pointer hover:underline"
@@ -189,7 +189,7 @@ export default function LoginPage() {
           >
             Register
           </span>
-        </p>
+        </p> */}
 
         {isResettingPassword && (
           <p className="text-center mt-4 text-sm text-muted-foreground">
