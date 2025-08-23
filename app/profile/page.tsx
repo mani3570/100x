@@ -46,6 +46,7 @@ type Profile = {
   user_id: string;
   email: string;
   public_email: boolean;
+  name: string;
 };
 
 type ProfileApplication = Application & {
@@ -80,12 +81,13 @@ export default function ProfilePage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
-
+  const [editedName, setEditedName] = useState("");
   useEffect(() => {
     if (user && profile) {
       setMyProfile(profile);
       setEditedUserId(profile.user_id || "");
       setEditedPublicEmail(profile.public_email || false);
+      setEditedName(profile.name || "");
       fetchUserData();
     } else if (!user && !loading) {
       router.push("/login");
@@ -123,6 +125,7 @@ export default function ProfilePage() {
         stars: app.stars[0]?.count || 0,
         isStarred: starredAppIds.includes(app.id),
         creator_user_id: app.creator?.user_id,
+        creator_name: app.creator?.name,
       }));
 
       setMyApplications(formattedApps);
@@ -210,6 +213,7 @@ export default function ProfilePage() {
         .update({
           user_id: editedUserId,
           public_email: editedPublicEmail,
+          name: editedName,
         })
         .eq("id", profile.id)
         .select();
@@ -225,6 +229,7 @@ export default function ProfilePage() {
           ...myProfile!,
           user_id: data[0].user_id,
           public_email: data[0].public_email,
+          name: data[0].name,
         });
       }
 
@@ -468,9 +473,9 @@ export default function ProfilePage() {
           <div className="flex-1 space-y-2">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold">
-                {editedUserId || user?.email?.split("@")[0]}
+                {editedName || user?.email?.split("@")[0]}
               </h1>
-              {!isEditing && (
+              {/* {!isEditing && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -479,7 +484,7 @@ export default function ProfilePage() {
                   <Pencil className="h-4 w-4 mr-1" />
                   Edit Profile
                 </Button>
-              )}
+              )} */}
             </div>
             <p className="text-muted-foreground flex items-center gap-2">
               <Mail className="h-4 w-4" />
@@ -505,6 +510,7 @@ export default function ProfilePage() {
                     setIsEditing(false);
                     setEditedUserId(profile?.user_id || "");
                     setEditedPublicEmail(profile?.public_email || false);
+                    setEditedName(profile?.name || "");
                   }}
                 >
                   <X className="h-4 w-4 mr-1" />
@@ -549,7 +555,7 @@ export default function ProfilePage() {
         )}
 
         {/* Password Change Section */}
-        <Card className="p-6 mb-6">
+        {/* <Card className="p-6 mb-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Change Password</h3>
@@ -605,10 +611,10 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-        </Card>
+        </Card> */}
 
         {/* Tabs */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-4 mb-6 text-orange-500 font-bold">
           <Button
             variant={activeTab === "my" ? "default" : "outline"}
             onClick={() => setActiveTab("my")}
@@ -630,7 +636,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Applications Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 text-orange-500 font-bold">
           {(activeTab === "my"
             ? myApplications
             : activeTab === "liked"
@@ -640,7 +646,7 @@ export default function ProfilePage() {
             <Link
               href={`/applications/${app.id}`}
               key={app.id}
-              className="block group"
+              className="block group text-orange-500 font-bold"
             >
               {activeTab === "my" && (
                 <Card className="overflow-hidden w-full max-w-[280px] justify-self-center transition-transform hover:scale-[1.02] h-[370px]">
@@ -655,7 +661,7 @@ export default function ProfilePage() {
                     </div>
                     <div className="p-3 flex flex-col h-[200px]">
                       <div className="flex justify-between items-start gap-2">
-                        <p className="font-semibold text-base line-clamp-1 group-hover:text-primary">
+                        <p className="font-semibold text-base line-clamp-1 group-hover:text-orange-500">
                           {app.title}
                         </p>
                         <Badge
@@ -671,14 +677,14 @@ export default function ProfilePage() {
                         {app.tags.slice(0, 3).map((tag) => (
                           <Badge
                             key={tag}
-                            variant="secondary"
+                            variant="outline"
                             className="text-xs px-2 py-0"
                           >
                             {tag}
                           </Badge>
                         ))}
                         {app.tags.length > 3 && (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-orange-500">
                             +{app.tags.length - 3}
                           </span>
                         )}
@@ -697,11 +703,11 @@ export default function ProfilePage() {
                               e.preventDefault();
                               handleStar(app.id, app.isStarred);
                             }}
-                            className={app.isStarred ? "text-[#75fa8d]" : ""}
+                            className={app.isStarred ? "text-orange-500" : ""}
                           >
                             <Star
                               className={`h-4 w-4 mr-1 ${
-                                app.isStarred ? "fill-[#75fa8d]" : ""
+                                app.isStarred ? "fill-orange-500" : ""
                               }`}
                             />
                             <span className="text-xs">{app.stars}</span>
@@ -781,11 +787,11 @@ export default function ProfilePage() {
                               e.preventDefault();
                               handleStar(app.id, app.isStarred);
                             }}
-                            className={app.isStarred ? "text-[#75fa8d]" : ""}
+                            className={app.isStarred ? "text-orange-500" : ""}
                           >
                             <Star
                               className={`h-4 w-4 mr-1 ${
-                                app.isStarred ? "fill-[#75fa8d]" : ""
+                                app.isStarred ? "fill-orange-500" : ""
                               }`}
                             />
                             <span className="text-xs">{app.stars}</span>

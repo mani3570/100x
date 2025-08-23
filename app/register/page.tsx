@@ -160,7 +160,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-500/90 text-white" disabled={isLoading}>
             {isLoading ? "Creating account..." : "Create Account"}
           </Button>
         </form>
@@ -168,7 +168,7 @@ export default function RegisterPage() {
         <p className="text-center mt-4 text-sm text-muted-foreground">
           Already have an account?{" "}
           <span
-            className="text-primary cursor-pointer hover:underline"
+            className="text-orange-500 cursor-pointer hover:underline"
             onClick={() => router.push("/login")}
           >
             Login

@@ -48,10 +48,12 @@ export function SiteHeader() {
                 <nav className="flex flex-col gap-4">
                   <Link
                     href="/"
-                    className="text-lg font-semibold text-[#75fa8d]"
+                    className="text-lg font-semibold text-orange-500"
                     onClick={() => setIsOpen(false)}
                   >
-                    Builders Central
+                    <span className="font-bold text-black">100</span>
+                    <span className="text-orange-500">x</span>
+                    <span className="text-black">Engineers</span>
                   </Link>
                   <Link
                     href="/applications"
@@ -80,8 +82,10 @@ export function SiteHeader() {
               </SheetContent>
             </Sheet>
           </div>
-          <Link href="/" className="text-2xl font-bold text-[#75fa8d]">
-            Builders Central
+          <Link href="/" className="text-2xl">
+            <span className="font-bold text-black">100</span>
+            <span className="text-orange-500">x</span>
+            <span className="text-black">Engineers</span>
           </Link>
         </div>
         {/* Right side - Navigation and Actions */}
@@ -90,7 +94,7 @@ export function SiteHeader() {
             <MainNav />
           </div>
           {user && <NotificationsDropdown />}
-          <ThemeToggle />
+          {/* <ThemeToggle /> */}
           {user ? (
             <div className="flex items-center gap-2">
               {/* Direct Profile Link via Avatar */}
@@ -122,7 +126,11 @@ export function SiteHeader() {
               >
                 Login
               </Button>
-              <Button size="sm" onClick={() => router.push("/register")}>
+              <Button
+                size="sm"
+                className="bg-orange-500 hover:bg-orange-500/90 text-white"
+                onClick={() => router.push("/register")}
+              >
                 Register
               </Button>
             </div>

@@ -174,8 +174,8 @@ export default function UserProfilePage() {
                           <p className="font-semibold text-base line-clamp-1 group-hover:text-primary">
                             {app.title}
                           </p>
-                          <div className="flex items-center gap-1 text-sm text-[#75fa8d]">
-                            <Star className="h-4 w-4 fill-[#75fa8d]" />
+                          <div className="flex items-center gap-1 text-sm text-orange-500">
+                            <Star className="h-4 w-4 fill-orange-500" />
                             <span>{app.stars}</span>
                           </div>
                         </div>
@@ -203,7 +203,7 @@ export default function UserProfilePage() {
                         </p>
 
                         <Button
-                          className="w-full mt-auto bg-[#75fa8d]/10 text-[#75fa8d] hover:bg-[#75fa8d]/20"
+                          className="w-full mt-auto bg-orange-500/10 text-orange-500 hover:bg-orange-500/20"
                           asChild
                         >
                           <Link href={`/applications/${app.id}`}>

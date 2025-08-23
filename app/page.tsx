@@ -205,7 +205,11 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight mb-6">
             <span className="text-foreground">Welcome to</span>{" "}
-            <span className="text-[#75fa8d]">Builders Central</span>
+            <span className="text-orange-500">
+              <span className="font-bold text-black">100</span>
+              <span className="text-orange-500">x</span>
+              <span className="text-black">Engineers</span>
+            </span>
           </h1>
 
           <p className="mt-6 text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto mb-12 font-mono">
@@ -216,7 +220,7 @@ export default function Home() {
           <div className="flex justify-center gap-6">
             <Button
               size="lg"
-              className="text-lg px-8 bg-[#75fa8d] hover:bg-[#75fa8d]/90 text-background"
+              className="text-lg px-8 bg-orange-500 hover:bg-orange-500/90 text-white"
               asChild
             >
               <Link href="/applications">Explore Apps</Link>
@@ -224,7 +228,7 @@ export default function Home() {
             <Button
               size="lg"
               variant="outline"
-              className="text-lg px-8 border-[#75fa8d] text-[#75fa8d] hover:bg-[#75fa8d]/10"
+              className="text-lg px-8 border-orange-500 text-orange-500 hover:bg-orange-500/10"
               asChild
             >
               <Link href="/submit">Submit Your App</Link>
@@ -238,7 +242,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background/95 to-background/90" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-[#75fa8d]">
+            <h2 className="text-3xl font-bold text-orange-500">
               Featured Applications
             </h2>
             <p className="text-muted-foreground mt-2">
@@ -251,7 +255,7 @@ export default function Home() {
               ? [...Array(3)].map((_, i) => (
                   <Card
                     key={i}
-                    className="overflow-hidden animate-pulse bg-card/50 backdrop-blur border-[#75fa8d]/10"
+                    className="overflow-hidden animate-pulse bg-card/50 backdrop-blur border-orange-500/10"
                   >
                     <div className="aspect-video bg-muted" />
                     <div className="p-6">
@@ -264,7 +268,7 @@ export default function Home() {
               : featuredApps.map((app, index) => (
                   <Card
                     key={index}
-                    className="overflow-hidden hover:shadow-xl hover:shadow-[#75fa8d]/5 transition-all duration-300 border-[#75fa8d]/10 hover:border-[#75fa8d]/20 bg-card/50 backdrop-blur"
+                    className="overflow-hidden hover:shadow-xl hover:shadow-orange-500/5 transition-all duration-300 border-orange-500/10 hover:border-orange-500/20 bg-card/50 backdrop-blur"
                   >
                     <div className="aspect-video w-full overflow-hidden relative group">
                       {(() => {
@@ -368,8 +372,8 @@ export default function Home() {
                           {app.title}
                         </h3>
 
-                        <div className="flex items-center text-[#75fa8d]">
-                          <Star className="w-4 h-4 mr-1 fill-[#75fa8d]" />
+                        <div className="flex items-center text-orange-500">
+                          <Star className="w-4 h-4 mr-1 fill-orange-500" />
                           <span>{app.stars}</span>
                         </div>
                       </div>
@@ -378,7 +382,7 @@ export default function Home() {
                       </p>
 
                       <Button
-                        className="w-full bg-[#75fa8d]/10 text-[#75fa8d] hover:bg-[#75fa8d]/20"
+                        className="w-full bg-orange-500/10 text-orange-500 hover:bg-orange-500/20"
                         asChild
                       >
                         <Link href={`/applications/${app.id}`}>
@@ -393,7 +397,7 @@ export default function Home() {
           <div className="mt-12 text-center">
             <Link
               href="/applications"
-              className="inline-flex items-center text-lg font-semibold text-[#75fa8d] border border-[#75fa8d] px-4 py-2 rounded-md hover:text-white/80 hover:bg-[#75fa8d]/10 transition-colors"
+              className="inline-flex items-center text-lg font-semibold text-orange-500 border border-orange-500 px-4 py-2 rounded-md hover:text-white/80 hover:bg-orange-500/10 transition-colors"
             >
               View All Applications
               <ChevronRight className="ml-2 h-5 w-5" />
@@ -403,10 +407,10 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-[#75fa8d] mb-4">
-            Why Choose Builders Central?
+          <h2 className="text-3xl font-bold text-orange-500 mb-4">
+            Why Choose 100xEngineers?
           </h2>
           <p className="text-xl text-muted-foreground">
             The perfect platform for developers to showcase their work
@@ -414,9 +418,9 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="flex flex-col items-center p-8 rounded-lg bg-[#75fa8d]/5 border border-[#75fa8d]/10 hover:bg-[#75fa8d]/10 transition-colors">
-            <Sparkles className="h-12 w-12 text-[#75fa8d] mb-4" />
-            <h3 className="text-xl font-semibold text-[#75fa8d] mb-3">
+          <div className="flex flex-col items-center p-8 rounded-lg bg-orange-500/5 border border-orange-500/10 hover:bg-orange-500/10 transition-colors">
+            <Sparkles className="h-12 w-12 text-orange-500 mb-4" />
+            <h3 className="text-xl font-semibold text-orange-500 mb-3">
               Centralized Hub
             </h3>
             <p className="text-muted-foreground text-center">
@@ -424,9 +428,9 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="flex flex-col items-center p-8 rounded-lg bg-[#75fa8d]/5 border border-[#75fa8d]/10 hover:bg-[#75fa8d]/10 transition-colors">
-            <Users className="h-12 w-12 text-[#75fa8d] mb-4" />
-            <h3 className="text-xl font-semibold text-[#75fa8d] mb-3">
+          <div className="flex flex-col items-center p-8 rounded-lg bg-orange-500/5 border border-orange-500/10 hover:bg-orange-500/10 transition-colors">
+            <Users className="h-12 w-12 text-orange-500 mb-4" />
+            <h3 className="text-xl font-semibold text-orange-500 mb-3">
               Developer Focused
             </h3>
             <p className="text-muted-foreground text-center">
@@ -435,9 +439,9 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="flex flex-col items-center p-8 rounded-lg bg-[#75fa8d]/5 border border-[#75fa8d]/10 hover:bg-[#75fa8d]/10 transition-colors">
-            <Rocket className="h-12 w-12 text-[#75fa8d] mb-4" />
-            <h3 className="text-xl font-semibold text-[#75fa8d] mb-3">
+          <div className="flex flex-col items-center p-8 rounded-lg bg-orange-500/5 border border-orange-500/10 hover:bg-orange-500/10 transition-colors">
+            <Rocket className="h-12 w-12 text-orange-500 mb-4" />
+            <h3 className="text-xl font-semibold text-orange-500 mb-3">
               Launch & Grow
             </h3>
             <p className="text-muted-foreground text-center">
@@ -446,7 +450,7 @@ export default function Home() {
             </p>
           </div>
         </div>
-      </section>
+      </section> */}
     </div>
   );
 }
