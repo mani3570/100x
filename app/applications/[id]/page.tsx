@@ -108,6 +108,7 @@ type ApplicationWithDetails = Application & {
   creator?: {
     user_id: string;
     role?: string;
+    name: string;
   };
   comments: Comment[];
   comments_enabled: boolean;
